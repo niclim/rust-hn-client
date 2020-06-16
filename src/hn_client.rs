@@ -22,14 +22,14 @@ enum Route {
     New,
     Top,
     Best,
-    Ask,
-    Job,
-    Show,
+    // Ask,
+    // Job,
+    // Show,
     Item,
 }
 
 #[derive(Debug)]
-enum Children {
+pub enum Children {
     Loaded(Vec<Comment>),
     NotLoaded(Vec<u32>),
 }
@@ -109,9 +109,9 @@ fn get_route(route: Route) -> String {
         Route::New => "/newstories.json",
         Route::Top => "/topstories.json",
         Route::Best => "/beststories.json",
-        Route::Ask => "/askstories.json",
-        Route::Job => "/jobstories.json",
-        Route::Show => "/showstories.json",
+        // Route::Ask => "/askstories.json",
+        // Route::Job => "/jobstories.json",
+        // Route::Show => "/showstories.json",
         Route::Item => "/item",
     };
     let base_hn_url = get_hn_url();
@@ -137,6 +137,22 @@ async fn get_top_post_ids() -> Result<Vec<u32>, Box<dyn std::error::Error>> {
     Ok(body)
 }
 
+async fn get_best_post_ids() -> Result<Vec<u32>, Box<dyn std::error::Error>> {
+    let route = get_route(Route::Best);
+    // This request returns the top 500 stories
+    // This _could_ be cached
+    let body: Vec<u32> = get(&route).await?.json().await?;
+    Ok(body)
+}
+
+async fn get_new_post_ids() -> Result<Vec<u32>, Box<dyn std::error::Error>> {
+    let route = get_route(Route::New);
+    // This request returns the top 500 stories
+    // This _could_ be cached
+    let body: Vec<u32> = get(&route).await?.json().await?;
+    Ok(body)
+}
+
 async fn get_items(ids: &Vec<u32>) -> Vec<Item> {
     stream::iter(ids)
         .map(|item_id| async move { get_item(item_id).await })
@@ -149,21 +165,28 @@ async fn get_items(ids: &Vec<u32>) -> Vec<Item> {
         .await
 }
 
+pub enum StoryListType {
+    New,
+    Best,
+    Top,
+}
+
 // Returns top 500 stories - also contains jobs
 // TODO - convert this to take in top / best / new
-pub async fn get_top_stories(
+pub async fn get_stories(
+    story_type: StoryListType,
     skip: usize,
     limit: usize,
 ) -> Result<Vec<Post>, Box<dyn std::error::Error>> {
-    let top_post_ids: Vec<u32> = get_top_post_ids().await?;
-    let paginated_top_posts: Vec<u32> = top_post_ids
-        .iter()
-        .cloned()
-        .skip(skip)
-        .take(limit)
-        .collect();
+    let post_ids: Vec<u32> = match story_type {
+        StoryListType::Top => get_top_post_ids().await?,
+        StoryListType::Best => get_best_post_ids().await?,
+        StoryListType::New => get_new_post_ids().await?,
+    };
 
-    let posts_bodies = get_items(&paginated_top_posts)
+    let paginated_post_ids: Vec<u32> = post_ids.iter().cloned().skip(skip).take(limit).collect();
+
+    let posts_bodies = get_items(&paginated_post_ids)
         .await
         .into_iter()
         .filter(|item| match item {
@@ -290,7 +313,7 @@ mod tests {
             })
             .collect();
 
-        let stories_result = get_top_stories(skip, limit).await.unwrap();
+        let stories_result = get_stories(StoryListType::Top, skip, limit).await.unwrap();
         assert_eq!(stories_result.len(), limit);
         get_top_stories_mock.assert();
 
