@@ -34,6 +34,31 @@ pub enum Children {
     NotLoaded(Vec<u32>),
 }
 
+// impl Clone for Children {
+//     fn clone(&self) -> Children {
+//         match self {
+//             Children::Loaded(v) => Children::Loaded(v.to_vec()),
+//             Children::NotLoaded(v) => Children::NotLoaded(v.to_vec()),
+//         }
+//     }
+// }
+
+// https://users.rust-lang.org/t/mutate-enum-in-place/18785/2
+// impl Children {
+//     pub async fn load_children(&mut self) {
+//         *self = match std::mem::replace(self, Children::Loading) {
+//             Children::NotLoaded(children_ids) => {
+//                 let comments_result = get_comments(&children_ids).await;
+//                 match comments_result {
+//                     Ok(comments) => Children::Loaded(comments),
+//                     Err(_) => Children::NotLoaded(children_ids),
+//                 }
+//             },
+//             v => v
+//         }
+//     }
+// }
+
 #[derive(Debug)]
 pub struct Post {
     id: u32,
@@ -172,7 +197,6 @@ pub enum StoryListType {
 }
 
 // Returns top 500 stories - also contains jobs
-// TODO - convert this to take in top / best / new
 pub async fn get_stories(
     story_type: StoryListType,
     skip: usize,
@@ -379,6 +403,37 @@ mod tests {
                 }
                 _ => panic!("Unexpected Item variant"),
             }
+        }
+    }
+
+    #[tokio::test]
+    async fn children_load_comments() {
+        let comment_ids = vec![1];
+        let mock_comment = make_mock_comment(1, 2);
+        let raw_comment = serde_json::to_string(&mock_comment).unwrap();
+        let mock_inst = mock("GET", "/item/1.json")
+            .with_status(200)
+            .with_header("content-type", "application/json")
+            .with_body(raw_comment)
+            .expect(1)
+            .create();
+
+        let mut children = Children::NotLoaded(comment_ids);
+
+        let load_future = children.load_children();
+
+        match children {
+            Children::Loading => {},
+            _ => {panic!("Expected state to be loading")}
+        }
+
+        load_future.await;
+        match children {
+            Children::Loaded(comments) => {
+                assert_eq!(comments.len(), 1);
+                assert_eq!(comments[0].id, 1);
+            },
+            _ => panic!("Expected state to be Loaded")
         }
     }
 }
