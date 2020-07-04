@@ -24,6 +24,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     }
 
+    // Render list of posts here
+    // get the top 10
+
     println!("{:?}", post_hash);
     println!("{:?}", comment_hash);
     Ok(())

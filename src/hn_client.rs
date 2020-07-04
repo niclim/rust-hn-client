@@ -147,7 +147,7 @@ async fn get_new_post_ids() -> Result<Vec<u32>, Box<dyn std::error::Error>> {
     Ok(body)
 }
 
-async fn get_items(ids: &Vec<u32>) -> Vec<Item> {
+async fn get_items(ids: &[u32]) -> Vec<Item> {
     stream::iter(ids)
         .map(|item_id| async move { get_item(item_id).await })
         .buffer_unordered(PARALLEL_REQUESTS)
@@ -177,9 +177,9 @@ pub async fn get_stories(
         StoryListType::New => get_new_post_ids().await?,
     };
 
-    let paginated_post_ids: Vec<u32> = post_ids.iter().cloned().skip(skip).take(limit).collect();
+    let paginated_post_ids = &post_ids[skip..limit];
 
-    let posts_bodies = get_items(&paginated_post_ids)
+    let posts_bodies = get_items(paginated_post_ids)
         .await
         .into_iter()
         .filter(|item| match item {
@@ -205,7 +205,7 @@ pub async fn get_stories(
     Ok(posts_bodies)
 }
 
-pub async fn get_comments(children: &Vec<u32>) -> Result<Vec<Comment>, Box<dyn std::error::Error>> {
+pub async fn get_comments(children: &[u32]) -> Result<Vec<Comment>, Box<dyn std::error::Error>> {
     // TODO add some sort of limit here with children
     // (i.e. don't load all children if great than x)
     // will probably need to change the childrens enum
