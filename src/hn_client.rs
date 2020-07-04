@@ -177,7 +177,7 @@ pub async fn get_stories(
         StoryListType::New => get_new_post_ids().await?,
     };
 
-    let paginated_post_ids = &post_ids[skip..limit];
+    let paginated_post_ids = &post_ids[skip..skip+limit];
 
     let posts_bodies = get_items(paginated_post_ids)
         .await
