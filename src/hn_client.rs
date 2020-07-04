@@ -29,31 +29,25 @@ enum Route {
 }
 
 #[derive(Debug)]
-pub enum Children {
-    Loaded(Vec<Comment>),
-    NotLoaded(Vec<u32>),
-}
-
-#[derive(Debug)]
 pub struct Post {
-    id: u32,
-    by: String,
-    children: Children,
-    title: String,
-    time: u32,
-    url: Option<String>,
-    text: Option<String>,
-    descendants: u32,
+    pub id: u32,
+    pub by: String,
+    pub children: Vec<u32>,
+    pub title: String,
+    pub time: u32,
+    pub url: Option<String>,
+    pub text: Option<String>,
+    pub descendants: u32,
 }
 
 #[derive(Debug)]
 pub struct Comment {
-    id: u32,
-    by: String,
-    children: Children,
-    parent: u32,
-    text: String,
-    time: u32,
+    pub id: u32,
+    pub by: String,
+    pub children: Vec<u32>,
+    pub parent: u32,
+    pub text: String,
+    pub time: u32,
 }
 
 // Defined by https://github.com/HackerNews/API#items
@@ -172,7 +166,6 @@ pub enum StoryListType {
 }
 
 // Returns top 500 stories - also contains jobs
-// TODO - convert this to take in top / best / new
 pub async fn get_stories(
     story_type: StoryListType,
     skip: usize,
@@ -198,7 +191,7 @@ pub async fn get_stories(
             Item::Story(story) => Post {
                 id: story.id,
                 by: story.by,
-                children: Children::NotLoaded(story.kids),
+                children: story.kids,
                 title: story.title,
                 time: story.time,
                 url: story.url,
@@ -228,7 +221,7 @@ pub async fn get_comments(children: &Vec<u32>) -> Result<Vec<Comment>, Box<dyn s
             Item::Comment(comment) => Comment {
                 id: comment.id,
                 by: comment.by,
-                children: Children::NotLoaded(comment.kids),
+                children: comment.kids,
                 parent: comment.parent,
                 text: comment.text,
                 time: comment.time,
