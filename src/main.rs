@@ -34,15 +34,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         data_store.top_post_ids.push(post.id);
         data_store.posts.insert(post.id, post);
     }
-    // if top_posts.len() > 0 {
-    //     let id = top_posts[1];
-    //     let post = post_hash.get(&id).unwrap();
-    //     let comments = hn_client::get_comments(&post.children).await?;
-
-    //     for comment in comments {
-    //         comment_hash.insert(comment.id, comment);
-    //     }
-    // }
 
     loop {
         ui::clear_screen(&mut stdout)?;
