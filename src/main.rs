@@ -1,25 +1,17 @@
 mod hn_client;
+mod store;
 mod ui;
 
-use std::collections::HashMap;
 use std::io::{self, Write};
 
 use crossterm::{queue, style::Print, terminal::size};
 
-use hn_client::{Comment, Post};
+use store::{init_store, ViewState, Page};
 use ui::POST_ROW_SIZE;
 
 const PAGE_SIZE: u8 = 20;
 
-struct ViewState {
-    page: Page,
-    scroll_offset: u16,
-}
 
-enum Page {
-    PostList { offset: u32, cursor_index: u32 },
-    PostDetails { post: u32, cursor_index: u32 },
-}
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -32,18 +24,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         },
         scroll_offset: 0,
     };
-    let mut top_posts: Vec<u32> = Vec::new();
-    let mut post_hash: HashMap<u32, Post> = HashMap::new();
-    // let mut comment_hash: HashMap<u32, Comment> = HashMap::new();
-    // TODO add view state (i.e. post list vs posts, cursor position, page offset (scroll position), page state (pagination, current post))
+    let mut data_store = init_store();
 
     // For now, load this on app initialize - we'll want to move this into some action trigger
     // to render loading state
     let posts =
         hn_client::get_stories(hn_client::StoryListType::Top, 0, PAGE_SIZE as usize).await?;
     for post in posts {
-        top_posts.push(post.id);
-        post_hash.insert(post.id, post);
+        data_store.top_post_ids.push(post.id);
+        data_store.posts.insert(post.id, post);
     }
     // if top_posts.len() > 0 {
     //     let id = top_posts[1];
@@ -67,7 +56,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 // Remove from total rows - end, etc - 1 row for commands
                 // Add one to handle render overflows
                 let number_of_posts = (rows - 1) / POST_ROW_SIZE as u16 + 1;
-                for (i, post_id) in top_posts
+                for (i, post_id) in data_store.top_post_ids
                     .iter()
                     .skip(view_state.scroll_offset as usize)
                     .take(number_of_posts as usize)
@@ -75,7 +64,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 {
                     let n = i + view_state.scroll_offset as usize;
                     // TODO create a render page post list fn
-                    let post = post_hash.get(post_id).unwrap();
+                    let post = data_store.posts.get(post_id).unwrap();
                     let cursor_text = if cursor_index as usize == n {
                         "➜  "
                     } else {
