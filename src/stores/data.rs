@@ -1,21 +1,5 @@
 use std::collections::HashMap;
 
-pub enum StoryListType {
-  New,
-  Best,
-  Top,
-}
-
-pub struct ViewState {
-  pub page: Page,
-  pub scroll_offset: u16,
-}
-
-pub enum Page {
-  PostList { offset: u32, cursor_index: u32 },
-  PostDetails { post: u32, cursor_index: u32 },
-}
-
 pub struct Post {
     pub id: u32,
     pub by: String,

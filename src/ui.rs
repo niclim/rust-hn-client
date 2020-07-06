@@ -1,4 +1,5 @@
-use crate::store::Post;
+use crate::stores::data::Post;
+use crate::constants::LEFT_OFFSET;
 use std::io::Write;
 
 use crossterm::{
@@ -10,14 +11,12 @@ use crossterm::{
     Result as CrossTermResult,
 };
 
-pub const POST_ROW_SIZE: u8 = 3;
-const LEFT_OFFSET: u16 = 3;
-
 pub enum UserAction {
     Up,
     Down,
     Enter,
-    Refresh,
+    // Refresh,
+    Rerender,
     Quit,
 }
 
@@ -73,7 +72,7 @@ pub fn get_user_action() -> CrossTermResult<UserAction> {
                 _ => continue,
             }
         } else if let Ok(Event::Resize(_, _)) = event::read() {
-            return Ok(UserAction::Refresh);
+            return Ok(UserAction::Rerender);
         }
     }
 }
@@ -82,7 +81,7 @@ pub fn print_post<W>(w: &mut W, number: usize, columns: u16, post: &Post) -> Cro
 where
     W: Write,
 {
-    // Posts will take up exactly 4 rows - things will be cropped otherwise
+    // Posts will take up exactly 3 rows - things will be cropped otherwise
     // TODO - handle size constraints - crop post title if long
     let main_line = format!(
         "{number} - {post_title}",
