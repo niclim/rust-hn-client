@@ -1,3 +1,4 @@
+use crate::store::{Comment, Post, StoryListType};
 use futures::{future, stream, StreamExt};
 use reqwest::get;
 use serde::{Deserialize, Serialize};
@@ -5,15 +6,15 @@ use serde::{Deserialize, Serialize};
 #[cfg(test)]
 use mockito;
 
-#[cfg(not(test))]
-fn get_hn_url() -> String {
-    String::from("https://hacker-news.firebaseio.com/v0")
-}
-
 #[cfg(test)]
 fn get_hn_url() -> String {
     let url = mockito::server_url();
     url
+}
+
+#[cfg(not(test))]
+fn get_hn_url() -> String {
+    String::from("https://hacker-news.firebaseio.com/v0")
 }
 
 const PARALLEL_REQUESTS: usize = 5;
@@ -22,32 +23,7 @@ enum Route {
     New,
     Top,
     Best,
-    // Ask,
-    // Job,
-    // Show,
     Item,
-}
-
-#[derive(Debug)]
-pub struct Post {
-    pub id: u32,
-    pub by: String,
-    pub children: Vec<u32>,
-    pub title: String,
-    pub time: u32,
-    pub url: Option<String>,
-    pub text: Option<String>,
-    pub descendants: u32,
-}
-
-#[derive(Debug)]
-pub struct Comment {
-    pub id: u32,
-    pub by: String,
-    pub children: Vec<u32>,
-    pub parent: u32,
-    pub text: String,
-    pub time: u32,
 }
 
 // Defined by https://github.com/HackerNews/API#items
@@ -103,9 +79,6 @@ fn get_route(route: Route) -> String {
         Route::New => "/newstories.json",
         Route::Top => "/topstories.json",
         Route::Best => "/beststories.json",
-        // Route::Ask => "/askstories.json",
-        // Route::Job => "/jobstories.json",
-        // Route::Show => "/showstories.json",
         Route::Item => "/item",
     };
     let base_hn_url = get_hn_url();
@@ -117,39 +90,20 @@ fn get_item_route(id: &u32) -> String {
     return format!("{base_url}/{id}.json", base_url = base_url, id = id);
 }
 
-async fn get_item(id: &u32) -> Result<Item, Box<dyn std::error::Error>> {
-    let route = get_item_route(id);
-    let body = get(&route).await?.json().await?;
-    Ok(body)
-}
-
-async fn get_top_post_ids() -> Result<Vec<u32>, Box<dyn std::error::Error>> {
-    let route = get_route(Route::Top);
-    // This request returns the top 500 stories
-    // This _could_ be cached
-    let body: Vec<u32> = get(&route).await?.json().await?;
-    Ok(body)
-}
-
-async fn get_best_post_ids() -> Result<Vec<u32>, Box<dyn std::error::Error>> {
-    let route = get_route(Route::Best);
-    // This request returns the top 500 stories
-    // This _could_ be cached
-    let body: Vec<u32> = get(&route).await?.json().await?;
-    Ok(body)
-}
-
-async fn get_new_post_ids() -> Result<Vec<u32>, Box<dyn std::error::Error>> {
-    let route = get_route(Route::New);
-    // This request returns the top 500 stories
-    // This _could_ be cached
-    let body: Vec<u32> = get(&route).await?.json().await?;
+async fn get_and_jsonify<T>(route: &str) -> Result<T, Box<dyn std::error::Error>>
+where
+    for<'de> T: Deserialize<'de>,
+{
+    let body: T = get(route).await?.json().await?;
     Ok(body)
 }
 
 async fn get_items(ids: &[u32]) -> Vec<Item> {
     stream::iter(ids)
-        .map(|item_id| async move { get_item(item_id).await })
+        .map(|item_id| async move {
+            let route = get_item_route(item_id);
+            get_and_jsonify::<Item>(&route).await
+        })
         .buffer_unordered(PARALLEL_REQUESTS)
         // TODO - handle error messaging / logging
         // Right now errors are silently swallowed
@@ -159,27 +113,21 @@ async fn get_items(ids: &[u32]) -> Vec<Item> {
         .await
 }
 
-pub enum StoryListType {
-    New,
-    Best,
-    Top,
-}
-
-// Returns top 500 stories - also contains jobs
-pub async fn get_stories(
+pub async fn get_post_ids(
     story_type: StoryListType,
-    skip: usize,
-    limit: usize,
-) -> Result<Vec<Post>, Box<dyn std::error::Error>> {
-    let post_ids: Vec<u32> = match story_type {
-        StoryListType::Top => get_top_post_ids().await?,
-        StoryListType::Best => get_best_post_ids().await?,
-        StoryListType::New => get_new_post_ids().await?,
+) -> Result<Vec<u32>, Box<dyn std::error::Error>> {
+    let route = match story_type {
+        StoryListType::Top => get_route(Route::Top),
+        StoryListType::Best => get_route(Route::Best),
+        StoryListType::New => get_route(Route::New),
     };
 
-    let paginated_post_ids = &post_ids[skip..skip+limit];
+    let post_ids = get_and_jsonify::<Vec<u32>>(&route).await?;
+    Ok(post_ids)
+}
 
-    let posts_bodies = get_items(paginated_post_ids)
+pub async fn get_stories(post_ids: &[u32]) -> Result<Vec<Post>, Box<dyn std::error::Error>> {
+    let posts_bodies = get_items(post_ids)
         .await
         .into_iter()
         .filter(|item| match item {
@@ -268,20 +216,27 @@ mod tests {
             time: rng.gen(),
         })
     }
-
     #[tokio::test]
-    async fn get_top_stories_returns_posts() {
+    async fn get_top_post_ids() {
         let story_ids: Vec<u32> = (0..30).collect();
         let raw_story_ids = serde_json::to_string(&story_ids).unwrap();
-        let skip: usize = 5;
-        let limit: usize = 20;
-
         let get_top_stories_mock = mock("GET", "/topstories.json")
             .with_status(200)
             .with_header("content-type", "application/json")
             .with_body(raw_story_ids)
             .expect(1)
             .create();
+
+        let post_ids = get_post_ids(StoryListType::Top).await.unwrap();
+        get_top_stories_mock.assert();
+        assert_eq!(post_ids.len(), story_ids.len());
+    }
+
+    #[tokio::test]
+    async fn get_top_stories_returns_posts() {
+        let story_ids: Vec<u32> = (0..30).collect();
+        let skip: usize = 5;
+        let limit: usize = 20;
 
         let mock_stories: HashMap<u32, (Item, mockito::Mock)> = story_ids
             .iter()
@@ -306,9 +261,8 @@ mod tests {
             })
             .collect();
 
-        let stories_result = get_stories(StoryListType::Top, skip, limit).await.unwrap();
+        let stories_result = get_stories(&story_ids[skip..skip + limit]).await.unwrap();
         assert_eq!(stories_result.len(), limit);
-        get_top_stories_mock.assert();
 
         for post in stories_result {
             let id = post.id;

@@ -1,5 +1,10 @@
-use crate::hn_client::{Comment, Post};
 use std::collections::HashMap;
+
+pub enum StoryListType {
+  New,
+  Best,
+  Top,
+}
 
 pub struct ViewState {
   pub page: Page,
@@ -9,6 +14,26 @@ pub struct ViewState {
 pub enum Page {
   PostList { offset: u32, cursor_index: u32 },
   PostDetails { post: u32, cursor_index: u32 },
+}
+
+pub struct Post {
+    pub id: u32,
+    pub by: String,
+    pub children: Vec<u32>,
+    pub title: String,
+    pub time: u32,
+    pub url: Option<String>,
+    pub text: Option<String>,
+    pub descendants: u32,
+}
+
+pub struct Comment {
+    pub id: u32,
+    pub by: String,
+    pub children: Vec<u32>,
+    pub parent: u32,
+    pub text: String,
+    pub time: u32,
 }
 
 pub fn init_store() -> DataStore {
@@ -30,5 +55,5 @@ pub struct DataStore {
 }
 
 impl DataStore {
-  
+
 }

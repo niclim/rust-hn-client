@@ -6,12 +6,10 @@ use std::io::{self, Write};
 
 use crossterm::{queue, style::Print, terminal::size};
 
-use store::{init_store, ViewState, Page};
+use store::{init_store, Page, StoryListType, ViewState};
 use ui::POST_ROW_SIZE;
 
 const PAGE_SIZE: u8 = 20;
-
-
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -26,10 +24,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     };
     let mut data_store = init_store();
 
-    // For now, load this on app initialize - we'll want to move this into some action trigger
-    // to render loading state
-    let posts =
-        hn_client::get_stories(hn_client::StoryListType::Top, 0, PAGE_SIZE as usize).await?;
+    // TODO - move this into store fns
+    let post_ids = hn_client::get_post_ids(StoryListType::Top).await?;
+    let paginated_post_ids = &post_ids[0..0 + PAGE_SIZE as usize];
+    let posts = hn_client::get_stories(paginated_post_ids).await?;
+
     for post in posts {
         data_store.top_post_ids.push(post.id);
         data_store.posts.insert(post.id, post);
@@ -47,7 +46,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 // Remove from total rows - end, etc - 1 row for commands
                 // Add one to handle render overflows
                 let number_of_posts = (rows - 1) / POST_ROW_SIZE as u16 + 1;
-                for (i, post_id) in data_store.top_post_ids
+                for (i, post_id) in data_store
+                    .top_post_ids
                     .iter()
                     .skip(view_state.scroll_offset as usize)
                     .take(number_of_posts as usize)

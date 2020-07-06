@@ -1,4 +1,4 @@
-use crate::hn_client::Post;
+use crate::store::Post;
 use std::io::Write;
 
 use crossterm::{
