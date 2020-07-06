@@ -8,16 +8,15 @@ use std::io::{self, Write};
 use crossterm::{queue, style::Print, terminal::size};
 
 use constants::{PAGE_SIZE, POST_ROW_SIZE};
-use stores::data::{init_store};
-use stores::view::{init_view_state, Page, StoryListType, ScrollDirection};
-
+use stores::data::DataStore;
+use stores::view::{Page, ScrollDirection, StoryListType, ViewState};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut stdout = io::stdout();
     ui::initialize_screen(&mut stdout)?;
-    let mut view_state = init_view_state();
-    let mut data_store = init_store();
+    let mut view_state = ViewState::init();
+    let mut data_store = DataStore::init();
 
     // TODO - move this into store fns
     let post_ids = hn_client::get_post_ids(StoryListType::Top).await?;
@@ -33,10 +32,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         ui::clear_screen(&mut stdout)?;
         let (columns, rows) = size()?;
         match view_state.page {
-            Page::PostList {
-                cursor_index,
-                ..
-            } => {
+            Page::PostList { cursor_index, .. } => {
                 // Calculate number of posts that can fit in the terminal
                 // Remove from total rows - end, etc - 1 row for commands
                 // Add one to handle render overflows

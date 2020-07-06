@@ -23,23 +23,23 @@ pub enum Page {
   },
 }
 
-pub fn init_view_state() -> ViewState {
-  ViewState {
-    page: Page::PostList {
-      offset: 0,
-      cursor_index: 0,
-      sort: StoryListType::Top,
-    },
-    scroll_offset: 0,
-  }
-}
-
 pub enum ScrollDirection {
   Up,
   Down,
 }
 
 impl ViewState {
+  pub fn init() -> ViewState {
+    ViewState {
+      page: Page::PostList {
+        offset: 0,
+        cursor_index: 0,
+        sort: StoryListType::Top,
+      },
+      scroll_offset: 0,
+    }
+  }
+
   pub fn scroll(&mut self, rows: u16, direction: ScrollDirection) {
     match &self.page {
       Page::PostList {
