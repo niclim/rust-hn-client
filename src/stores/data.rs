@@ -1,21 +1,5 @@
 use std::collections::HashMap;
 
-pub enum StoryListType {
-  New,
-  Best,
-  Top,
-}
-
-pub struct ViewState {
-  pub page: Page,
-  pub scroll_offset: u16,
-}
-
-pub enum Page {
-  PostList { offset: u32, cursor_index: u32 },
-  PostDetails { post: u32, cursor_index: u32 },
-}
-
 pub struct Post {
     pub id: u32,
     pub by: String,
@@ -36,16 +20,6 @@ pub struct Comment {
     pub time: u32,
 }
 
-pub fn init_store() -> DataStore {
-  DataStore {
-    top_post_ids: Vec::new(),
-    best_post_ids: Vec::new(),
-    new_post_ids: Vec::new(),
-    posts: HashMap::new(),
-    comments: HashMap::new(),
-  }
-}
-
 pub struct DataStore {
   pub top_post_ids: Vec<u32>,
   pub best_post_ids: Vec<u32>,
@@ -55,5 +29,13 @@ pub struct DataStore {
 }
 
 impl DataStore {
-
+  pub fn init() -> DataStore {
+    DataStore {
+      top_post_ids: Vec::new(),
+      best_post_ids: Vec::new(),
+      new_post_ids: Vec::new(),
+      posts: HashMap::new(),
+      comments: HashMap::new(),
+    }
+  }
 }

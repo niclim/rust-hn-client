@@ -1,4 +1,6 @@
-use crate::store::{Comment, Post, StoryListType};
+use crate::constants::PARALLEL_REQUESTS;
+use crate::stores::data::{Comment, Post};
+use crate::stores::view::{StoryListType};
 use futures::{future, stream, StreamExt};
 use reqwest::get;
 use serde::{Deserialize, Serialize};
@@ -16,8 +18,6 @@ fn get_hn_url() -> String {
 fn get_hn_url() -> String {
     String::from("https://hacker-news.firebaseio.com/v0")
 }
-
-const PARALLEL_REQUESTS: usize = 5;
 
 enum Route {
     New,
