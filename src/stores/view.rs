@@ -15,7 +15,7 @@ pub enum Page {
   PostList {
     offset: u32,
     cursor_index: u32,
-    sort: StoryListType,
+    filter: StoryListType,
   },
   PostDetails {
     post: u32,
@@ -34,7 +34,7 @@ impl ViewState {
       page: Page::PostList {
         offset: 0,
         cursor_index: 0,
-        sort: StoryListType::Top,
+        filter: StoryListType::Top,
       },
       scroll_offset: 0,
     }
@@ -45,7 +45,7 @@ impl ViewState {
       Page::PostList {
         cursor_index,
         offset,
-        sort,
+        filter,
       } => {
         // Calculate number of posts that can be shown without overflow / crop
         let number_of_posts = (rows - 1) / POST_ROW_SIZE as u16;
@@ -86,11 +86,11 @@ impl ViewState {
         self.page = Page::PostList {
           offset: *offset,
           cursor_index: new_cursor,
-          sort: match sort {
+          filter: match filter {
             StoryListType::Top => StoryListType::Top,
             StoryListType::Best => StoryListType::Best,
             StoryListType::New => StoryListType::New,
-          }
+          },
         };
         self.scroll_offset = scroll_offset;
       }

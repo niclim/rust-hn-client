@@ -1,5 +1,5 @@
-use crate::stores::data::Post;
 use crate::constants::LEFT_OFFSET;
+use crate::stores::data::Post;
 use std::io::Write;
 
 use crossterm::{
