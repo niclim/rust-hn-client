@@ -6,6 +6,8 @@ A hacker news client build in rust - view HN from the comfort of your terminal. 
 
 Setup instructions assume you have a working rust installation. Instructions how linked [here](https://www.rust-lang.org/tools/install).
 
+Pre-commit is used to format + check prior to commit. Install pre-commit by following [these steps](https://pre-commit.com/#installation). After installation run `pre-commit install`.
+
 Some common commands:
-- run: `cargo run`
-- test: `cargo test`
+- `cargo run`
+- `cargo test`

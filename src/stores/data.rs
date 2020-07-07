@@ -21,21 +21,21 @@ pub struct Comment {
 }
 
 pub struct DataStore {
-  pub top_post_ids: Vec<u32>,
-  pub best_post_ids: Vec<u32>,
-  pub new_post_ids: Vec<u32>,
-  pub posts: HashMap<u32, Post>,
-  pub comments: HashMap<u32, Comment>,
+    pub top_post_ids: Vec<u32>,
+    pub best_post_ids: Vec<u32>,
+    pub new_post_ids: Vec<u32>,
+    pub posts: HashMap<u32, Post>,
+    pub comments: HashMap<u32, Comment>,
 }
 
 impl DataStore {
-  pub fn init() -> DataStore {
-    DataStore {
-      top_post_ids: Vec::new(),
-      best_post_ids: Vec::new(),
-      new_post_ids: Vec::new(),
-      posts: HashMap::new(),
-      comments: HashMap::new(),
+    pub fn init() -> DataStore {
+        DataStore {
+            top_post_ids: Vec::new(),
+            best_post_ids: Vec::new(),
+            new_post_ids: Vec::new(),
+            posts: HashMap::new(),
+            comments: HashMap::new(),
+        }
     }
-  }
 }

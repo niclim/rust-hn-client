@@ -1,6 +1,6 @@
 use crate::constants::PARALLEL_REQUESTS;
 use crate::stores::data::{Comment, Post};
-use crate::stores::view::{StoryListType};
+use crate::stores::view::StoryListType;
 use futures::{future, stream, StreamExt};
 use reqwest::get;
 use serde::{Deserialize, Serialize};
