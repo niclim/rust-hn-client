@@ -1,6 +1,6 @@
 use crate::constants::PARALLEL_REQUESTS;
 use crate::stores::data::{Comment, Post};
-use crate::stores::view::{StoryListType};
+use crate::stores::view::StoryListType;
 use futures::{future, stream, StreamExt};
 use reqwest::get;
 use serde::{Deserialize, Serialize};
@@ -114,7 +114,7 @@ async fn get_items(ids: &[u32]) -> Vec<Item> {
 }
 
 pub async fn get_post_ids(
-    story_type: StoryListType,
+    story_type: &StoryListType,
 ) -> Result<Vec<u32>, Box<dyn std::error::Error>> {
     let route = match story_type {
         StoryListType::Top => get_route(Route::Top),
@@ -227,7 +227,7 @@ mod tests {
             .expect(1)
             .create();
 
-        let post_ids = get_post_ids(StoryListType::Top).await.unwrap();
+        let post_ids = get_post_ids(&StoryListType::Top).await.unwrap();
         get_top_stories_mock.assert();
         assert_eq!(post_ids.len(), story_ids.len());
     }
