@@ -3,7 +3,6 @@ mod hn_client;
 mod stores;
 mod ui;
 
-use std::future;
 use std::io::{self, Write};
 
 use crossterm::{queue, style::Print, terminal::size};
@@ -32,10 +31,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     loop {
         match &async_action {
             AsyncAction::FetchPosts { filter, offset } => {
-                // TODO - add in loading screen state
-
                 // Only load posts if this has not been added to the store
                 if !data_store.has_post_ids(filter) {
+                    // TODO - add in loading screen state
                     let post_ids = hn_client::get_post_ids(filter).await?;
                     data_store.hydrate_post_ids(filter, post_ids);
                 }
@@ -44,16 +42,22 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 let start = *offset as usize;
                 let end = (*offset + PAGE_SIZE as u32) as usize;
                 let paginated_post_ids = &post_ids[start..end];
-                // TODO - filter posts that are already loaded
+                let unloaded_post_ids = data_store.get_missing_post_ids(paginated_post_ids);
 
-                let posts = hn_client::get_stories(paginated_post_ids).await?;
-
-                data_store.hydrate_posts(posts);
+                if unloaded_post_ids.len() > 0 {
+                    // TODO - add in loading screen state
+                    let posts = hn_client::get_stories(&unloaded_post_ids).await?;
+                    data_store.hydrate_posts(posts);
+                }
             }
             AsyncAction::FetchComments { comment_ids } => {
-                // check if fetch otherwise fetch
-                let comments = hn_client::get_comments(comment_ids).await?;
-                // TODO hydrate store
+                let unloaded_comment_ids = data_store.get_missing_comment_ids(comment_ids);
+
+                if unloaded_comment_ids.len() > 0 {
+                    // TODO add loading screen state
+                    let comments = hn_client::get_comments(comment_ids).await?;
+                    data_store.hydrate_comments(comments);
+                }
             }
             AsyncAction::Noop => {}
         };
