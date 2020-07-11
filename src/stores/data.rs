@@ -74,6 +74,10 @@ impl DataStore {
         }
     }
 
+    pub fn get_comment(&self, comment_id: &u32) -> Option<&Comment> {
+        self.comments.get(comment_id)
+    }
+
     pub fn hydrate_comments(&mut self, comments: Vec<Comment>) {
         for comment in comments {
             self.comments.insert(comment.id, comment);
@@ -85,7 +89,7 @@ impl DataStore {
             .iter()
             .cloned()
             // TODO handle error checking when add errors into hashmap
-            .filter(|post_id| self.posts.contains_key(post_id))
+            .filter(|post_id| !self.posts.contains_key(post_id))
             .collect()
     }
 
@@ -94,7 +98,7 @@ impl DataStore {
             .iter()
             .cloned()
             // TODO handle error checking when add errors into hashmap
-            .filter(|comment_id| self.comments.contains_key(comment_id))
+            .filter(|comment_id| !self.comments.contains_key(comment_id))
             .collect()
     }
 }
@@ -105,10 +109,10 @@ mod tests {
     use rand::distributions::Alphanumeric;
     use rand::Rng;
 
-    fn make_post() -> Post {
+    fn make_post(id: u32) -> Post {
         let mut rng = rand::thread_rng();
         Post {
-            id: rng.gen(),
+            id: id,
             by: rng.sample_iter(&Alphanumeric).take(30).collect(),
             children: vec![0; 5].iter().map(|_| rng.gen()).collect(),
             title: rng.sample_iter(&Alphanumeric).take(30).collect(),
@@ -119,11 +123,27 @@ mod tests {
         }
     }
 
+    fn make_comment(id: u32) -> Comment {
+        let mut rng = rand::thread_rng();
+        Comment {
+            id: id,
+            by: rng.sample_iter(&Alphanumeric).take(30).collect(),
+            children: vec![0; 5].iter().map(|_| rng.gen()).collect(),
+            parent: rng.gen(),
+            text: rng.sample_iter(&Alphanumeric).take(30).collect(),
+            time: rng.gen(),
+        }
+    }
+
     #[test]
     fn data_store_posts() {
         let mut data_store = DataStore::init();
         let n_posts = 5;
-        let mock_posts: Vec<Post> = vec![0; n_posts].iter().map(|_| make_post()).collect();
+        let mock_posts: Vec<Post> = (0..n_posts)
+            .collect::<Vec<u32>>()
+            .into_iter()
+            .map(|id| make_post(id))
+            .collect();
 
         for enum_variant in vec![StoryListType::Best, StoryListType::Top, StoryListType::New].iter()
         {
@@ -137,12 +157,56 @@ mod tests {
         data_store.hydrate_posts(mock_posts);
 
         assert_eq!(data_store.has_post_ids(&StoryListType::Best), true);
-        assert_eq!(data_store.get_post_ids(&StoryListType::Best).len(), n_posts);
+        assert_eq!(
+            data_store.get_post_ids(&StoryListType::Best).len() as u32,
+            n_posts
+        );
 
         let post_ids = data_store.get_post_ids(&StoryListType::Best);
         for post_id in post_ids {
             // Should have a valid post stored
             data_store.get_post(&post_id).unwrap();
         }
+    }
+
+    #[test]
+    fn data_store_comments() {
+        let mut data_store = DataStore::init();
+        let comment_ids: Vec<u32> = (0..5).collect();
+        let mock_comments: Vec<Comment> = comment_ids
+            .iter()
+            .cloned()
+            .map(|id| make_comment(id))
+            .collect();
+        data_store.hydrate_comments(mock_comments);
+
+        for comment_id in comment_ids {
+            // Should have a valid post stored
+            data_store.get_comment(&comment_id).unwrap();
+        }
+    }
+
+    #[test]
+    fn missing_post_and_comments() {
+        let mut data_store = DataStore::init();
+        let post_ids: Vec<u32> = (0..5).collect();
+        let comment_ids: Vec<u32> = (6..10).collect();
+        let mock_posts: Vec<Post> = post_ids.iter().cloned().map(|id| make_post(id)).collect();
+        let mock_comments: Vec<Comment> = comment_ids
+            .iter()
+            .cloned()
+            .map(|id| make_comment(id))
+            .collect();
+        data_store.hydrate_posts(mock_posts);
+        data_store.hydrate_comments(mock_comments);
+
+        let missing_post_ids = data_store.get_missing_post_ids(&(0..6).collect::<Vec<u32>>());
+        let missing_comment_ids =
+            data_store.get_missing_comment_ids(&(6..11).collect::<Vec<u32>>());
+        println!("{:?}", missing_post_ids);
+        assert_eq!(missing_post_ids.len(), 1);
+        assert_eq!(missing_comment_ids.len(), 1);
+        assert_eq!(missing_post_ids[0], 5);
+        assert_eq!(missing_comment_ids[0], 10);
     }
 }
