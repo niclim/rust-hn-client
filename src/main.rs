@@ -82,7 +82,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     let n = i + view_state.scroll_offset as usize;
                     // TODO create a render page post list fn
                     // TODO handle error case here
-                    let post = data_store.posts.get(post_id).unwrap();
+                    let post = data_store.get_post(post_id).unwrap();
                     let cursor_text = if *cursor_index as usize == n {
                         "➜  "
                     } else {

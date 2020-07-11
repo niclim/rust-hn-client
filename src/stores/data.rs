@@ -25,7 +25,7 @@ pub struct DataStore {
     top_post_ids: Vec<u32>,
     best_post_ids: Vec<u32>,
     new_post_ids: Vec<u32>,
-    pub posts: HashMap<u32, Post>,
+    posts: HashMap<u32, Post>,
     pub comments: HashMap<u32, Comment>,
 }
 
@@ -64,9 +64,61 @@ impl DataStore {
         };
     }
 
+    pub fn get_post(&self, post_id: &u32) -> Option<&Post> {
+        self.posts.get(post_id)
+    }
+
     pub fn hydrate_posts(&mut self, posts: Vec<Post>) {
         for post in posts {
             self.posts.insert(post.id, post);
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rand::distributions::Alphanumeric;
+    use rand::Rng;
+
+    fn make_post() -> Post {
+        let mut rng = rand::thread_rng();
+        Post {
+            id: rng.gen(),
+            by: rng.sample_iter(&Alphanumeric).take(30).collect(),
+            children: vec![0; 5].iter().map(|_| rng.gen()).collect(),
+            title: rng.sample_iter(&Alphanumeric).take(30).collect(),
+            time: rng.gen(),
+            url: Some(rng.sample_iter(&Alphanumeric).take(30).collect()),
+            text: Some(rng.sample_iter(&Alphanumeric).take(30).collect()),
+            descendants: rng.gen(),
+        }
+    }
+
+    #[test]
+    fn data_store_posts() {
+        let mut data_store = DataStore::init();
+        let n_posts = 5;
+        let mock_posts: Vec<Post> = vec![0; n_posts].iter().map(|_| make_post()).collect();
+
+        for enum_variant in vec![StoryListType::Best, StoryListType::Top, StoryListType::New].iter()
+        {
+            assert_eq!(data_store.has_post_ids(&enum_variant), false);
+            assert_eq!(data_store.get_post_ids(&enum_variant).len(), 0);
+        }
+
+        // hydrate store
+        let post_ids_to_hydrate: Vec<u32> = mock_posts.iter().map(|post| post.id).collect();
+        data_store.hydrate_post_ids(&StoryListType::Best, post_ids_to_hydrate);
+        data_store.hydrate_posts(mock_posts);
+
+        assert_eq!(data_store.has_post_ids(&StoryListType::Best), true);
+        assert_eq!(data_store.get_post_ids(&StoryListType::Best).len(), n_posts);
+
+        let post_ids = data_store.get_post_ids(&StoryListType::Best);
+        for post_id in post_ids {
+            // Should have a valid post stored
+            data_store.get_post(&post_id).unwrap();
         }
     }
 }
