@@ -48,7 +48,7 @@ impl DataStore {
         }
     }
 
-    pub fn get_post_ids(&self, story_type: &StoryListType) -> &Vec<u32> {
+    pub fn get_post_ids(&self, story_type: &StoryListType) -> &[u32] {
         match story_type {
             StoryListType::Top => &self.top_post_ids,
             StoryListType::Best => &self.best_post_ids,
@@ -72,6 +72,30 @@ impl DataStore {
         for post in posts {
             self.posts.insert(post.id, post);
         }
+    }
+
+    pub fn hydrate_comments(&mut self, comments: Vec<Comment>) {
+        for comment in comments {
+            self.comments.insert(comment.id, comment);
+        }
+    }
+
+    pub fn get_missing_post_ids(&self, post_ids: &[u32]) -> Vec<u32> {
+        post_ids
+            .iter()
+            .cloned()
+            // TODO handle error checking when add errors into hashmap
+            .filter(|post_id| self.posts.contains_key(post_id))
+            .collect()
+    }
+
+    pub fn get_missing_comment_ids(&self, comment_ids: &[u32]) -> Vec<u32> {
+        comment_ids
+            .iter()
+            .cloned()
+            // TODO handle error checking when add errors into hashmap
+            .filter(|comment_id| self.comments.contains_key(comment_id))
+            .collect()
     }
 }
 
