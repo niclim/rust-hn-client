@@ -29,6 +29,26 @@ pub struct DataStore {
     pub comments: HashMap<u32, Comment>,
 }
 
+pub struct PostCommentIds {
+    i: usize,
+    comment_ids: Vec<u32>,
+}
+
+impl Iterator for PostCommentIds {
+    type Item = u32;
+
+    fn next(&mut self) -> Option<u32> {
+        match self.i >= self.comment_ids.len() {
+            true => None,
+            false => {
+                let current_index = self.i;
+                self.i = self.i + 1;
+                Some(self.comment_ids[current_index])
+            }
+        }
+    }
+}
+
 impl DataStore {
     pub fn init() -> DataStore {
         DataStore {
@@ -101,6 +121,38 @@ impl DataStore {
             .filter(|comment_id| !self.comments.contains_key(comment_id))
             .collect()
     }
+
+    fn _post_comment_helper(&self, comment_ids: Vec<u32>) -> Vec<u32> {
+        comment_ids
+            .iter()
+            .flat_map(|comment_id| {
+                let comment_children =
+                    self._post_comment_helper(match self.get_comment(comment_id) {
+                        Some(comment) => comment.children.iter().cloned().collect(),
+                        None => Vec::new(),
+                    });
+
+                [&[*comment_id], &comment_children[..]].concat()
+            })
+            .collect::<Vec<u32>>()
+    }
+
+    // For now, we are going to ignore unloaded comments
+    pub fn get_post_comments(&self, post_id: &u32) -> PostCommentIds {
+        let comment_ids: Vec<u32> = self._post_comment_helper(
+            self.get_post(post_id)
+                .unwrap()
+                .children
+                .iter()
+                .cloned()
+                .collect(),
+        );
+
+        PostCommentIds {
+            i: 0,
+            comment_ids: comment_ids,
+        }
+    }
 }
 
 #[cfg(test)]
@@ -123,13 +175,13 @@ mod tests {
         }
     }
 
-    fn make_comment(id: u32) -> Comment {
+    fn make_comment(id: u32, parent_id: u32) -> Comment {
         let mut rng = rand::thread_rng();
         Comment {
             id: id,
             by: rng.sample_iter(&Alphanumeric).take(30).collect(),
             children: vec![0; 5].iter().map(|_| rng.gen()).collect(),
-            parent: rng.gen(),
+            parent: parent_id,
             text: rng.sample_iter(&Alphanumeric).take(30).collect(),
             time: rng.gen(),
         }
@@ -176,7 +228,7 @@ mod tests {
         let mock_comments: Vec<Comment> = comment_ids
             .iter()
             .cloned()
-            .map(|id| make_comment(id))
+            .map(|id| make_comment(id, 10))
             .collect();
         data_store.hydrate_comments(mock_comments);
 
@@ -195,7 +247,7 @@ mod tests {
         let mock_comments: Vec<Comment> = comment_ids
             .iter()
             .cloned()
-            .map(|id| make_comment(id))
+            .map(|id| make_comment(id, 0))
             .collect();
         data_store.hydrate_posts(mock_posts);
         data_store.hydrate_comments(mock_comments);
@@ -203,10 +255,51 @@ mod tests {
         let missing_post_ids = data_store.get_missing_post_ids(&(0..6).collect::<Vec<u32>>());
         let missing_comment_ids =
             data_store.get_missing_comment_ids(&(6..11).collect::<Vec<u32>>());
-        println!("{:?}", missing_post_ids);
         assert_eq!(missing_post_ids.len(), 1);
         assert_eq!(missing_comment_ids.len(), 1);
         assert_eq!(missing_post_ids[0], 5);
         assert_eq!(missing_comment_ids[0], 10);
+    }
+
+    #[test]
+    fn post_comments_iterator() {
+        fn make_comment_with_children(id: u32, parent_id: u32, children: Vec<u32>) -> Comment {
+            let mut comment = make_comment(id, parent_id);
+            comment.children = children;
+            comment
+        }
+        // Structure of mock post + comments looks like
+        // Post: 1
+        //       |
+        //       |- 2 - 4
+        //       |  |
+        //       |  | - 5
+        //       |
+        //       |- 3 - 6
+        //       |  |
+        //       |  | - 7
+        let mut data_store = DataStore::init();
+        let mut post = make_post(1);
+        post.children = vec![2, 3];
+        // id, parent id
+        let comments: Vec<Comment> = vec![
+            make_comment_with_children(2, 1, vec![4, 5]),
+            make_comment_with_children(3, 1, vec![6, 7]),
+            make_comment_with_children(4, 2, vec![]),
+            make_comment_with_children(5, 2, vec![]),
+            make_comment_with_children(6, 3, vec![]),
+            make_comment_with_children(7, 3, vec![]),
+        ];
+
+        data_store.hydrate_posts(vec![post]);
+        data_store.hydrate_comments(comments);
+        // Collecting the iterator to assert the length
+        let post_comments: Vec<u32> = data_store.get_post_comments(&1).collect();
+        assert_eq!(post_comments.len(), 6);
+
+        let expected_ids = [2, 4, 5, 3, 6, 7];
+        for (i, comment_id) in post_comments.iter().enumerate() {
+            assert_eq!(expected_ids[i], *comment_id);
+        }
     }
 }
